@@ -95,6 +95,15 @@ body {
   color: #00f2b4;
 }
 
+/* Hide scrollbar for Chrome, Safari, Opera and modern browsers while preserving scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Print Styles */
 @media print {
   body {

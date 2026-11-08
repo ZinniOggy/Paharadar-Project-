@@ -1,6 +1,6 @@
 import type { Finding } from "./types";
 
-export type Counts = { critical: number; warn: number; info: number; pass: number };
+export type Counts = { critical: number; warn: number; info: number; pass: number; inconclusive?: number };
 export type Entry = { id: string; domain: string; score: number; at: number; counts: Counts; findings: Finding[] };
 
 const KEY = "paharadar:history:v2";
@@ -13,6 +13,7 @@ export const countsOf = (f: Finding[]): Counts => ({
   warn: f.filter((x) => x.severity === "warn").length,
   info: f.filter((x) => x.severity === "info").length,
   pass: f.filter((x) => x.severity === "pass").length,
+  inconclusive: f.filter((x) => x.severity === "inconclusive").length,
 });
 
 export function loadHistory(): Entry[] {

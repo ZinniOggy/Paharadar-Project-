@@ -14,6 +14,11 @@ export const SEV = {
     badge: "border border-cyan-500/50 bg-cyan-500/15 text-cyan-400 font-medium",
     bar: "bg-cyan-500",
   },
+  inconclusive: {
+    label: "INCONCLUSIVE",
+    badge: "border border-slate-500/50 bg-slate-500/15 text-slate-300 font-semibold",
+    bar: "bg-slate-500",
+  },
   pass: {
     label: "PASS",
     badge: "border border-emerald-500/50 bg-emerald-500/15 text-emerald-400 font-semibold",

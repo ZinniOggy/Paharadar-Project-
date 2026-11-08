@@ -1,6 +1,6 @@
 import { assertPublicHost } from "./ssrf";
 
-type Opts = { headers?: Record<string, string>; maxHops?: number };
+type Opts = { headers?: Record<string, string>; maxHops?: number; readBody?: boolean };
 
 export async function safeFetch(startUrl: string, opts: Opts = {}) {
   const maxHops = opts.maxHops ?? 4;
@@ -13,17 +13,26 @@ export async function safeFetch(startUrl: string, opts: Opts = {}) {
 
     const res = await fetch(url, {
       redirect: "manual",
+      cache: "no-store",
       signal: AbortSignal.timeout(6000),
       headers: { "user-agent": "Paharadar/0.1 (passive header check)", ...opts.headers },
     });
-    await res.body?.cancel();   // headers only
 
     const loc = res.headers.get("location");
     if (res.status >= 300 && res.status < 400 && loc) {
+      await res.body?.cancel();
       url = new URL(loc, url).toString();
       continue;
     }
-    return { res, finalUrl: url };
+
+    let body = "";
+    if (opts.readBody) {
+      body = await res.text().catch(() => "");
+    } else {
+      await res.body?.cancel(); // headers only
+    }
+
+    return { res, finalUrl: url, body };
   }
   throw new Error("Too many redirects");
 }

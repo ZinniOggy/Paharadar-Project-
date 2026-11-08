@@ -6,7 +6,7 @@ import { useScanCtx } from "./ScanProvider";
 import { score } from "@/lib/score";
 import { DEMO } from "@/lib/site";
 
-const ORDER = { critical: 0, warn: 1, info: 2, pass: 3 } as const;
+const ORDER = { critical: 0, warn: 1, info: 2, inconclusive: 3, pass: 4 } as const;
 
 export function GuideBridge() {
   const router = useRouter();

@@ -38,7 +38,7 @@ export interface Line {
   choices: Choice[];
 }
 
-const ORDER = { critical: 0, warn: 1, info: 2, pass: 3 } as const;
+const ORDER = { critical: 0, warn: 1, info: 2, inconclusive: 3, pass: 4 } as const;
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 const go = (to: string, label: string): Choice => ({ id: `go:${to}`, label });
 

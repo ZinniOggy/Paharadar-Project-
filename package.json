@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --experimental-strip-types --test test/scanner-accuracy.test.mjs"
   },
   "dependencies": {
     "@rive-app/react-canvas": "^4.38.1",

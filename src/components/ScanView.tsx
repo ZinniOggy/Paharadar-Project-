@@ -1,107 +1,54 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { useScanCtx } from "./ScanProvider";
-import { ScanForm } from "./ScanForm";
-import { PageHeader } from "./PageHeader";
 import { ScoreRing } from "./ScoreRing";
 import { FindingRow } from "./FindingRow";
 import { DetailsPanel } from "./DetailsPanel";
 import { ScanPortal } from "./ScanPortal";
-import { CategoryBars, ActionPlan, FixKit, ExportPanel } from "./ResultTabs";
-import { score } from "@/lib/score";
-import { loadHistory, type Entry } from "@/lib/history";
+import { CategoryBars, FixKit, ActionPlan, ExportPanel } from "./ResultTabs";
 import type { Finding } from "@/lib/types";
-import { Shield, Activity, RefreshCw, AlertTriangle, Filter, CheckCircle2, FileText, ArrowRight } from "lucide-react";
+import { RefreshCw, Activity, PlusCircle, ShieldCheck, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
-const TABS = [
+interface Props {
+  domain: string;
+  findings: Finding[];
+  status: "idle" | "scanning" | "done" | "error";
+  score: number;
+  previous: number | null;
+  reset: () => void;
+}
+
+type Tab = "findings" | "kit" | "plan" | "export";
+const TABS: [Tab, string][] = [
   ["findings", "Findings"],
   ["kit", "Fix Kit"],
   ["plan", "Action Plan"],
   ["export", "Export Report"],
-] as const;
+];
 
-type Tab = (typeof TABS)[number][0];
-type FilterSev = "all" | "critical" | "warn" | "pass";
-const ORDER = { critical: 0, warn: 1, info: 2, pass: 3 } as const;
-
-export function ScanView() {
-  const { status, findings, error, previous, domain, open, setOpen, reset, setInput } = useScanCtx();
+export function ScanView({
+  domain,
+  findings,
+  status,
+  score: s,
+  previous,
+  reset,
+}: Props) {
   const [tab, setTab] = useState<Tab>("findings");
-  const [filter, setFilter] = useState<FilterSev>("all");
-  const [recent, setRecent] = useState<Entry[]>([]);
+  const [open, setOpen] = useState<Finding | null>(null);
+  const [filter, setFilter] = useState<"all" | "critical" | "warn" | "pass">("all");
 
-  useEffect(() => {
-    if (status !== "idle") return;
-    const seen = new Set<string>();
-    setRecent(loadHistory().filter((e) => !seen.has(e.domain) && seen.add(e.domain)).slice(0, 6));
-  }, [status]);
+  const count = (sev: Finding["severity"]) =>
+    findings.filter((f) => f.severity === sev).length;
 
-  if (status === "idle") {
-    return (
-      <div className="pb-24 pt-6">
-        <PageHeader
-          eyebrow="Target Scanner"
-          title={<>Analyze any website <span className="text-gradient">in real time.</span></>}
-        >
-          Enter a domain you own or have permission to test. Paharadar safely reads public HTTP headers, cryptographic certificates, and DNS records.
-        </PageHeader>
-
-        <div className="mt-6 max-w-2xl">
-          <ScanForm />
-        </div>
-
-        {recent.length > 0 && (
-          <div className="mt-10 max-w-2xl">
-            <span className="text-xs font-semibold uppercase tracking-wider text-mute">Recent Audits</span>
-            <div className="mt-3 flex flex-wrap gap-2.5">
-              {recent.map((h) => (
-                <button
-                  key={h.domain}
-                  onClick={() => setInput(h.domain)}
-                  className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2 text-xs font-medium text-slate-300 hover:border-emerald-400/40 hover:text-white transition-all"
-                >
-                  <span>{h.domain}</span>
-                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-                    {h.score}/100
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (status === "error") {
-    return (
-      <div className="py-24 max-w-lg mx-auto text-center">
-        <div className="inline-flex p-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 mb-4">
-          <AlertTriangle className="h-8 w-8" />
-        </div>
-        <h2 className="text-2xl font-bold text-white">Scan could not be completed</h2>
-        <p className="mt-3 text-sm text-mute leading-relaxed">{error}</p>
-        <button
-          onClick={reset}
-          className="btn-primary mt-8 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-xs font-semibold uppercase tracking-wider"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          <span>Try another domain</span>
-        </button>
-      </div>
-    );
-  }
-
-  const s = score(findings);
-  const count = (sev: Finding["severity"]) => findings.filter((f) => f.severity === sev).length;
-
-  const sortedRows = status === "done" ? [...findings].sort((a, b) => ORDER[a.severity] - ORDER[b.severity]) : findings;
-  const filteredRows = filter === "all" ? sortedRows : sortedRows.filter((f) => f.severity === filter);
+  const filteredRows = findings.filter((f) => {
+    if (filter === "all") return true;
+    return f.severity === filter;
+  });
 
   const print = () => {
-    setTab("findings");
-    setTimeout(() => window.print(), 250);
+    if (typeof window !== "undefined") window.print();
   };
 
   return (
@@ -110,21 +57,25 @@ export function ScanView() {
       <aside className="lg:sticky lg:top-24 lg:self-start">
         <div className="glass-panel rounded-3xl p-6">
           <div className="flex items-center justify-between pb-4 border-b border-white/[0.08]">
-            <button
-              data-noprint
-              onClick={reset}
-              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-mute hover:text-white transition-colors"
-            >
-              <RefreshCw className="h-3 w-3" />
-              <span>New Scan</span>
-            </button>
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-mute">
+              Target Telemetry
+            </span>
             <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
               {status === "scanning" ? "Scanning..." : "Complete"}
             </span>
           </div>
 
-          <p className="mt-4 break-all text-base font-bold text-white">{domain}</p>
+                    <p className="mt-4 break-all text-base font-bold text-white">{domain}</p>
+
+          {/* Fresh Live Telemetry Indicator */}
+          <div className="mt-2 flex items-center justify-between">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live Scan · Fresh Telemetry
+            </span>
+            <span className="text-[10px] font-mono text-mute">Zero Stale Cache</span>
+          </div>
 
           <div className="mt-5">
             <ScoreRing value={s} />
@@ -182,6 +133,16 @@ export function ScanView() {
             </div>
           )}
 
+          {/* PROMINENT BOLD NEW SCAN BUTTON IN SIDEBAR */}
+          <button
+            data-noprint
+            onClick={reset}
+            className="w-full mt-5 flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-black font-extrabold text-xs uppercase tracking-wider py-3.5 px-4 shadow-[0_0_25px_rgba(0,242,180,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>Audit New Website</span>
+          </button>
+
           {/* Rive ScanPortal Animation while scanning */}
           <motion.div
             data-noprint
@@ -197,27 +158,39 @@ export function ScanView() {
 
       {/* Right Column: Tabbed Findings, Fix Kit, Action Plan */}
       <section>
-        {/* Navigation Tabs */}
-        <div data-noprint role="tablist" className="mb-6 flex gap-2 overflow-x-auto border-b border-white/[0.08] pb-px">
-          {TABS.map(([id, label]) => (
-            <button
-              key={id}
-              role="tab"
-              aria-selected={tab === id}
-              onClick={() => setTab(id)}
-              className={`relative whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors ${
-                tab === id ? "text-white" : "text-mute hover:text-slate-200"
-              }`}
-            >
-              {label}
-              {tab === id && (
-                <motion.span
-                  layoutId="scan-tab-underline"
-                  className="absolute inset-x-2 -bottom-[1px] h-[2px] bg-emerald-400 shadow-[0_0_10px_#00f2b4]"
-                />
-              )}
-            </button>
-          ))}
+        {/* Navigation Tabs + Bold New Scan Pill */}
+        <div data-noprint className="mb-6 flex items-center justify-between border-b border-white/[0.08] pb-px">
+          <div role="tablist" className="flex gap-2 overflow-x-auto no-scrollbar sm:overflow-visible">
+            {TABS.map(([id, label]) => (
+              <button
+                key={id}
+                role="tab"
+                aria-selected={tab === id}
+                onClick={() => setTab(id)}
+                className={`relative whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                  tab === id ? "text-white" : "text-mute hover:text-slate-200"
+                }`}
+              >
+                {label}
+                {tab === id && (
+                  <motion.span
+                    layoutId="scan-tab-underline"
+                    className="absolute inset-x-2 -bottom-[1px] h-[2px] bg-emerald-400 shadow-[0_0_10px_#00f2b4]"
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Header Action: Start New Scan */}
+          <button
+            data-noprint
+            onClick={reset}
+            className="hidden sm:flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 px-3.5 py-1.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30 hover:border-emerald-400 transition-all shadow-[0_0_15px_rgba(0,242,180,0.25)]"
+          >
+            <PlusCircle className="h-3.5 w-3.5" />
+            <span>New Scan</span>
+          </button>
         </div>
 
         {/* Tab Panes */}
@@ -272,7 +245,7 @@ export function ScanView() {
                 </div>
               </div>
 
-              {/* Findings List (Screen 2 -> Screen 3 interaction) */}
+              {/* Findings List */}
               <div className="glass-panel rounded-3xl overflow-hidden divide-y divide-white/[0.06]">
                 {filteredRows.map((f) => (
                   <FindingRow key={f.id} f={f} onOpen={() => setOpen(f)} />
@@ -285,6 +258,28 @@ export function ScanView() {
                   <span className="text-sm">Connecting to {domain} and reading public headers...</span>
                 </div>
               )}
+
+              {/* AUDIT COMPLETE BANNER WITH BOLD NEW SCAN ACTION */}
+              {status === "done" && (
+                <div className="glass-panel rounded-3xl p-6 mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border border-emerald-500/30 bg-gradient-to-r from-emerald-950/30 via-black to-cyan-950/30">
+                  <div className="flex items-center gap-3.5">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 shadow-[0_0_15px_rgba(0,242,180,0.3)]">
+                      <ShieldCheck className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Assessment Complete for {domain}</h4>
+                      <p className="text-xs text-mute">Export your report, copy server fix configurations, or scan a new domain.</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={reset}
+                    className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-black font-black text-xs uppercase tracking-wider px-5 py-3 shadow-[0_0_20px_rgba(0,242,180,0.5)] transition-all hover:scale-105 active:scale-95"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    <span>Scan Another Site</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -294,7 +289,7 @@ export function ScanView() {
         </motion.div>
       </section>
 
-      {/* Slide-over Detailed Remediation Panel (Screen 3) */}
+      {/* Slide-over Detailed Remediation Panel */}
       <AnimatePresence>
         {open && <DetailsPanel key={open.id} f={open} onClose={() => setOpen(null)} />}
       </AnimatePresence>

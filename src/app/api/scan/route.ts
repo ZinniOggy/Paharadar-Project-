@@ -1,11 +1,8 @@
 import { NextRequest } from "next/server";
 import { assertPublicHost, normalizeHost } from "@/lib/ssrf";
-import { safeFetch } from "@/lib/fetcher";
-import { buildChecks } from "@/lib/checks";
+import { probeTarget, buildChecks } from "@/lib/checks";
 import { limited } from "@/lib/rate";
 
-// Node.js is the default runtime, which the `tls` module needs, so no `runtime` export.
-// POST handlers are always dynamic, so no `dynamic` export either (cacheComponents rejects it).
 export const maxDuration = 30;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -39,13 +36,15 @@ export async function POST(req: NextRequest) {
         try { ctrl.enqueue(enc.encode(JSON.stringify(o) + "\n")); } catch { /* client left */ }
       };
       try {
-        const main = await safeFetch(`https://${host}`).catch(() => null);
-        for (const run of buildChecks(host, main)) {
+        // Conduct comprehensive, parallel network & protocol probe
+        const probe = await probeTarget(host);
+
+        for (const run of buildChecks(probe)) {
           if (req.signal.aborted) break;
           const findings = await run().catch(() => []);
           for (const finding of findings) {
             send({ type: "finding", finding });
-            await sleep(220);            // pacing so the UI reads as a live checklist
+            await sleep(180); // pacing so the telemetry reads as a live audit checklist
           }
         }
         send({ type: "done" });

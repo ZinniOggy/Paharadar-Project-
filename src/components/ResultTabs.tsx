@@ -8,7 +8,7 @@ import { buildKits } from "@/lib/fixkit";
 import { download, findingsCsv } from "@/lib/export";
 import { Check, Copy, Download, Printer, CheckCircle2, ArrowRight, FileCode } from "lucide-react";
 
-const ORDER = { critical: 0, warn: 1, info: 2, pass: 3 } as const;
+const ORDER = { critical: 0, warn: 1, info: 2, inconclusive: 3, pass: 4 } as const;
 
 export function CategoryBars({ findings }: { findings: Finding[] }) {
   const rows = CAT_ORDER.map((c) => {
